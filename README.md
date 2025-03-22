@@ -13,6 +13,7 @@ A Node.js script that captures pixel-perfect, full-page screenshots of webpages 
 - Basic error handling and logging
 - Debug mode to show browser window
 - Automatic cookie consent handling
+- Capture all device types at once
 
 ## Requirements
 
@@ -49,7 +50,17 @@ The `urls.txt` file should contain one URL per line.
 ### Specify Device Type
 
 ```bash
+# Capture desktop viewport (default)
+node index.js -d desktop
+
+# Capture mobile viewport
 node index.js -d mobile
+
+# Capture tablet viewport
+node index.js -d tablet
+
+# Capture all device types at once
+node index.js -d all
 ```
 
 Available device types:
@@ -57,6 +68,7 @@ Available device types:
 - `desktop` (default)
 - `mobile`
 - `tablet`
+- `all` (captures all device types)
 
 ### Enable Debug Mode
 
@@ -86,12 +98,21 @@ The script automatically attempts to handle cookie consent popups by:
 ```bash
 # Process URLs from file in tablet viewport with debug mode
 node index.js -f urls.txt -d tablet -D
+
+# Process URLs from file for all device types with debug mode
+node index.js -f urls.txt -d all -D
 ```
 
 ## Output
 
 Screenshots are saved in the `screenshots/` directory with filenames in the format:
 `{sanitized-url}_{device-type}_{timestamp}.png`
+
+When using `-d all`, you'll get three screenshots for each URL:
+
+- `{url}_desktop_{timestamp}.png`
+- `{url}_mobile_{timestamp}.png`
+- `{url}_tablet_{timestamp}.png`
 
 ## Configuration
 

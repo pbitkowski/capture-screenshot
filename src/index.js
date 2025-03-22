@@ -3,7 +3,7 @@ const { program } = require("commander");
 const {
   captureScreenshot,
   captureAllDeviceTypes,
-} = require("./src/services/screenshotService");
+} = require("./services/screenshotService");
 
 async function processUrlsFromFile(filePath) {
   const content = await fs.readFile(filePath, "utf-8");
