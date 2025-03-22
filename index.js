@@ -266,7 +266,7 @@ async function main() {
     }
   } else {
     // Example URLs if no file is provided
-    urls = ["https://example.com", "https://google.com"];
+    urls = ["https://www.upwork.com/"];
   }
 
   const deviceType = options.device;
