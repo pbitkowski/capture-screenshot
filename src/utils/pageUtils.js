@@ -68,6 +68,61 @@ async function waitForLazyImages(page) {
   });
 }
 
+async function handleStickyElements(page) {
+  // detect sticky elements and make them non-sticky
+  const stickyInfo = await page.evaluate(() => {
+    const stickyElements = Array.from(document.querySelectorAll("*")).filter(
+      (element) => {
+        const computedStyle = window.getComputedStyle(element);
+        return computedStyle.position === "sticky";
+      }
+    );
+
+    return {
+      count: stickyElements.length,
+      elements: stickyElements.map((el) => ({
+        tag: el.tagName,
+        classes: el.className,
+        computedPosition: window.getComputedStyle(el).position,
+      })),
+    };
+  });
+
+  console.log("Sticky elements found:", stickyInfo);
+
+  // Now apply the changes in a separate evaluate call
+  await page.evaluate(() => {
+    const elements = Array.from(document.querySelectorAll("*")).filter(
+      (element) => {
+        const computedStyle = window.getComputedStyle(element);
+        return (
+          computedStyle.position === "sticky" ||
+          computedStyle.position === "fixed"
+        );
+      }
+    );
+
+    const viewportHeight = window.innerHeight;
+    const threshold = viewportHeight * 0.5; // 50% of viewport height
+
+    elements.forEach((element) => {
+      const rect = element.getBoundingClientRect();
+      const elementTop = rect.top;
+
+      if (elementTop < threshold) {
+        // Preserve top elements
+        element.style.position = "absolute";
+        element.style.top = "0";
+        element.style.width = "100%";
+        element.style.zIndex = "1000";
+      } else {
+        // Remove bottom elements
+        element.remove();
+      }
+    });
+  });
+}
+
 async function scrollToBottom(page) {
   let previousHeight;
   let attempts = 0;
@@ -115,12 +170,11 @@ async function scrollToBottom(page) {
   }
 
   console.log("Waiting for lazy images to load...");
-  await waitForLazyImages(page);
-  await new Promise((resolve) => setTimeout(resolve, 30000));
 }
 
 module.exports = {
   waitForPageReady,
   waitForLazyImages,
   scrollToBottom,
+  handleStickyElements,
 };

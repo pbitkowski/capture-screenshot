@@ -3,9 +3,12 @@ const fs = require("fs-extra");
 const path = require("path");
 const CONFIG = require("../config/config");
 const { sanitizeFilename } = require("../utils/filenameUtils");
-const { waitForPageReady, scrollToBottom } = require("../utils/pageUtils");
+const { scrollToBottom, handleStickyElements } = require("../utils/pageUtils");
 const { handleModals } = require("./modalService");
 const { handleCookieConsent } = require("./cookieService");
+const {
+  default: fullPageScreenshot,
+} = require("puppeteer-full-page-screenshot");
 
 async function captureScreenshot(url, deviceType = "desktop", debug = false) {
   const browser = await puppeteer.launch({
@@ -19,7 +22,7 @@ async function captureScreenshot(url, deviceType = "desktop", debug = false) {
 
     const viewport = {
       ...CONFIG.viewport,
-      ...(deviceType === "mobile" ? { width: 375, height: 667 } : {}),
+      ...(deviceType === "mobile" ? { width: 393, height: 852 } : {}),
       ...(deviceType === "tablet" ? { width: 768, height: 1024 } : {}),
     };
     await page.setViewport(viewport);
@@ -30,17 +33,40 @@ async function captureScreenshot(url, deviceType = "desktop", debug = false) {
       timeout: CONFIG.timeout,
     });
 
-    await handleCookieConsent(page);
-    console.log("Waiting for page to be ready...");
-    await waitForPageReady(page);
+    // Hide scrollbars
+    await page.evaluate(() => {
+      const style = document.createElement("style");
+      style.textContent = `
+        * {
+          scrollbar-width: none !important;
+          -ms-overflow-style: none !important;
+        }
+        *::-webkit-scrollbar {
+          display: none !important;
+        }
+      `;
+      document.head.appendChild(style);
+    });
 
-    console.log("Scrolling to bottom...");
-    await scrollToBottom(page);
+    let attempts = 0;
+    while (true) {
+      console.log("Running loop for clearing site from messy popups ");
+      await handleCookieConsent(page);
+      await handleModals(page);
+      await handleStickyElements(page);
+      // this makes sure that all images are loaded
+      await scrollToBottom(page);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      attempts++;
+      if (attempts > 4) {
+        break;
+      }
+    }
 
-    await page.evaluate("window.scrollTo(0, 0)");
-
-    const pageHeight = await page.evaluate("document.body.scrollHeight");
-    await page.setViewport({ ...viewport, height: pageHeight });
+    // const pageHeight = await page.evaluate("document.body.scrollHeight");
+    // await page.setViewport({ ...viewport, height: pageHeight });
+    // // wait for 5 s
+    // await new Promise((resolve) => setTimeout(resolve, 5000));
 
     await fs.ensureDir(CONFIG.screenshotDir);
 
@@ -50,15 +76,13 @@ async function captureScreenshot(url, deviceType = "desktop", debug = false) {
     const filepath = path.join(CONFIG.screenshotDir, filename);
 
     console.log(`Capturing screenshot for ${url}...`);
-    await handleModals(page);
 
-    // wait 5 seconds
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    // await page.screenshot({
+    //   path: filepath,
+    //   fullPage: true,
+    // });
 
-    await page.screenshot({
-      path: filepath,
-      fullPage: true,
-    });
+    await fullPageScreenshot(page, { path: filepath });
 
     console.log(`Screenshot saved: ${filepath}`);
     return filepath;
